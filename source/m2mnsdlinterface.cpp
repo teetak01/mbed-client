@@ -23,7 +23,7 @@
 #include "mbed-client/m2mconstants.h"
 #include "include/m2mtlvserializer.h"
 #include "ip6string.h"
-#include "ns_trace.h"
+#include "mbed-client-trace/mbed_client_trace.h"
 #include "mbed-client/m2mtimer.h"
 
 M2MNsdlInterface::M2MNsdlInterface(M2MNsdlObserver &observer)

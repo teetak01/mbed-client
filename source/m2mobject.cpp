@@ -20,7 +20,7 @@
 #include "include/m2mtlvdeserializer.h"
 #include "include/nsdllinker.h"
 #include "include/m2mreporthandler.h"
-#include "ns_trace.h"
+#include "mbed-client-trace/mbed_client_trace.h"
 
 M2MObject::M2MObject(const String &object_name)
 : M2MBase(object_name,M2MBase::Dynamic),
