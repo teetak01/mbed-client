@@ -24,7 +24,7 @@
 //mbed-client-libservice
 #include "randLIB.h"
 #include "nsdynmemLIB.h"
-#include "ns_trace.h"
+#include "mbed-client-trace/mbed_client_trace.h"
 #include "ns_cmdline.h"
 
 

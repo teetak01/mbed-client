@@ -20,7 +20,7 @@
 #include "include/m2mtlvdeserializer.h"
 #include "include/nsdllinker.h"
 #include "include/m2mreporthandler.h"
-#include "ns_trace.h"
+#include "mbed-client-trace/mbed_client_trace.h"
 
 #define BUFFER_SIZE 10
 

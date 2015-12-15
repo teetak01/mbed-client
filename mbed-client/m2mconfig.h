@@ -26,4 +26,11 @@ using namespace m2m;
 #define TRACE_GROUP "mbed-client"
 #endif
 
+#ifdef YOTTA_CFG_MBED_CLIENT_TRACE
+
+#ifndef TRACE_GROUP
+#define TRACE_GROUP "mbed-client"
+#endif
+
+#endif
 #endif // M2MCONFIG_H
