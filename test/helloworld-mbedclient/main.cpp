@@ -41,7 +41,7 @@ using namespace mbed::util;
 #include "mbed-client/m2minterface.h"
 #include "mbed-client/m2mobjectinstance.h"
 #include "mbed-client/m2mresource.h"
-#include "ns_trace.h"
+#include "mbed-client-trace/mbed_client_trace.h"
 
 #ifdef TARGET_LIKE_LINUX
 static void ctrl_c_handle_function(void);
