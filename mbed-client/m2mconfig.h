@@ -25,8 +25,12 @@ using namespace m2m;
 #if defined(HAVE_DEBUG) || !defined(NDEBUG)
 #define TRACE_GROUP "mbed-client"
 #endif
-//TODO control this flag from client app with config.json as in mbedtls allows
+
+#ifdef YOTTA_CFG_MBED_CLIENT_TRACE
+
 #ifndef TRACE_GROUP
 #define TRACE_GROUP "mbed-client"
+#endif
+
 #endif
 #endif // M2MCONFIG_H
