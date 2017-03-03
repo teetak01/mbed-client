@@ -38,13 +38,14 @@ public:
 
     void test_nsdl_c_received_from_server();
 
-    void test_nsdl_c_bootstrap_done();
-
     void test_socket_malloc();
 
     void test_socket_free();
 
     TestObserver *observer;
+    M2MConnectionHandler *connection_handler;
+private:
+    void clear_list();
 };
 
 #endif // TEST_NSDL_ACCESS_HELPER_H

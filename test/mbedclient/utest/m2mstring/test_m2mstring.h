@@ -26,6 +26,7 @@ public:
     Test_M2MString();
     virtual ~Test_M2MString();
 
+    void test_string_and_len_constructor();
     void test_copy_constructor();
     void test_operator_assign();
     void test_operator_add();
@@ -45,6 +46,8 @@ public:
     void test_at();
     void test_erase();
     void test_append();
+    void test_append_raw();
+    void test_append_int();
     void test_compare();
     void test_find_last_of();
     void test_operator_lt();

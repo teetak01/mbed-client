@@ -32,7 +32,6 @@ TEST_GROUP(M2MNsdlInterface)
   }
 };
 
-
 TEST(M2MNsdlInterface, create)
 {
     CHECK(m2m_nsdl_interface->nsdl != NULL);
@@ -108,11 +107,6 @@ TEST(M2MNsdlInterface, resource_callback_get)
     m2m_nsdl_interface->test_resource_callback_get();
 }
 
-TEST(M2MNsdlInterface, resource_callback_put)
-{
-    m2m_nsdl_interface->test_resource_callback_put();
-}
-
 TEST(M2MNsdlInterface, resource_callback_post)
 {
     m2m_nsdl_interface->test_resource_callback_post();
@@ -123,24 +117,14 @@ TEST(M2MNsdlInterface, resource_callback_delete)
     m2m_nsdl_interface->test_resource_callback_delete();
 }
 
-TEST(M2MNsdlInterface, resource_callback_reset)
+TEST(M2MNsdlInterface, process_received_data)
 {
-    m2m_nsdl_interface->test_resource_callback_reset();
-}
-
-TEST(M2MNsdlInterface, bootstrap_done_callback)
-{
-    m2m_nsdl_interface->test_bootstrap_done_callback();
+    m2m_nsdl_interface->test_process_received_data();
 }
 
 TEST(M2MNsdlInterface, timer_expired)
 {
     m2m_nsdl_interface->test_timer_expired();
-}
-
-TEST(M2MNsdlInterface, process_received_data)
-{
-    m2m_nsdl_interface->test_process_received_data();
 }
 
 TEST(M2MNsdlInterface, stop_timers)
@@ -181,4 +165,19 @@ TEST(M2MNsdlInterface, add_object_to_list)
 TEST(M2MNsdlInterface, test_send_delayed_response)
 {
     m2m_nsdl_interface->test_send_delayed_response();
+}
+
+TEST(M2MNsdlInterface, resource_callback_put)
+{
+    m2m_nsdl_interface->test_resource_callback_put();
+}
+
+TEST(M2MNsdlInterface, get_nsdl_handle)
+{
+    m2m_nsdl_interface->test_get_nsdl_handle();
+}
+
+TEST(M2MNsdlInterface, endpoint_name)
+{
+    m2m_nsdl_interface->test_endpoint_name();
 }

@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// Note: this macro is needed on armcc to get the the PRI*32 macros
+// from inttypes.h in a C++ code.
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+
 #include "mbed-client/m2minterfacefactory.h"
 #include "mbed-client/m2mserver.h"
 #include "mbed-client/m2mdevice.h"
@@ -21,7 +28,11 @@
 #include "mbed-client/m2mconstants.h"
 #include "mbed-client/m2mconfig.h"
 #include "include/m2minterfaceimpl.h"
-#include "ns_trace.h"
+#include "mbed-trace/mbed_trace.h"
+
+#include <inttypes.h>
+
+#define TRACE_GROUP "mClt"
 
 M2MInterface* M2MInterfaceFactory::create_interface(M2MInterfaceObserver &observer,
                                                     const String &endpoint_name,
@@ -36,7 +47,7 @@ M2MInterface* M2MInterfaceFactory::create_interface(M2MInterfaceObserver &observ
     tr_debug("M2MInterfaceFactory::create_interface - IN");
     tr_debug("M2MInterfaceFactory::create_interface - parameters endpoint name : %s",endpoint_name.c_str());
     tr_debug("M2MInterfaceFactory::create_interface - parameters endpoint type : %s",endpoint_type.c_str());
-    tr_debug("M2MInterfaceFactory::create_interface - parameters life time(in secs):  %d",life_time);
+    tr_debug("M2MInterfaceFactory::create_interface - parameters life time(in secs): %" PRId32,life_time);
     tr_debug("M2MInterfaceFactory::create_interface - parameters Listen Port : %d",listen_port);
     tr_debug("M2MInterfaceFactory::create_interface - parameters Binding Mode : %d",(int)mode);
     tr_debug("M2MInterfaceFactory::create_interface - parameters NetworkStack : %d",(int)stack);
@@ -107,6 +118,6 @@ M2MObject* M2MInterfaceFactory::create_object(const String &name)
     }
 
     M2MObject *object = NULL;
-    object = new M2MObject(name);
+    object = new M2MObject(name, M2MBase::stringdup(name.c_str()));
     return object;
 }

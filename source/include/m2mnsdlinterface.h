@@ -22,6 +22,7 @@
 #include "mbed-client/m2mtimerobserver.h"
 #include "mbed-client/m2mobservationhandler.h"
 #include "mbed-client/m2mbase.h"
+#include "mbed-client/m2mserver.h"
 #include "include/nsdllinker.h"
 
 //FORWARD DECLARARTION
@@ -33,6 +34,7 @@ class M2MResourceInstance;
 class M2MNsdlObserver;
 class M2MServer;
 class M2MTimer;
+class M2MConnectionHandler;
 
 typedef Vector<M2MObject *> M2MObjectList;
 
@@ -55,7 +57,7 @@ public:
     * @brief Constructor
     * @param observer, Observer to pass the event callbacks from nsdl library.
     */
-    M2MNsdlInterface(M2MNsdlObserver &observer);
+    M2MNsdlInterface(M2MNsdlObserver &observer, M2MConnectionHandler &connection_handler);
 
     /**
      * @brief Destructor
@@ -92,26 +94,28 @@ public:
 
     /**
      * @brief Removed the NSDL resource for the given resource.
-     * @param resource_name, Resource name to be removed.
+     * @param base, Resource to be removed.
      * @return true if removed successfully else false.
     */
-    bool delete_nsdl_resource(const String &resource_name);
+    bool remove_nsdl_resource(M2MBase *base);
 
     /**
      * @brief Creates the bootstrap object.
      * @param address Bootstrap address.
      * @return true if created and sent successfully else false.
     */
-    bool create_bootstrap_resource(sn_nsdl_addr_s *address);
+    bool create_bootstrap_resource(sn_nsdl_addr_s *address, const String &bootstrap_endpoint_name);
 
     /**
      * @brief Sends the register message to the server.
      * @param address M2MServer address.
+     * @param address_length M2MServer address length.
      * @param port M2MServer port.
      * @param address_type IP Address type.
      * @return  true if register sent successfully else false.
     */
     bool send_register_message(uint8_t* address,
+                               uint8_t address_length,
                                const uint16_t port,
                                sn_nsdl_addr_type_e address_type);
 
@@ -133,13 +137,13 @@ public:
      * @brief Memory Allocation required for libCoap.
      * @param size, Size of memory to be reserved.
     */
-    void* memory_alloc(uint16_t size);
+    static void* memory_alloc(uint16_t size);
 
     /**
      * @brief Memory free functions required for libCoap
      * @param ptr, Object whose memory needs to be freed.
     */
-    void memory_free(void *ptr);
+    static void memory_free(void *ptr);
 
     /**
     * @brief Callback from nsdl library to inform the data is ready
@@ -183,12 +187,6 @@ public:
                                sn_nsdl_capab_e nsdl_capab);
 
     /**
-     * @brief Callback when the bootstrap information is received from bootstrap server.
-     * @param server_info, Server information received from bootstrap server.
-     */
-    void bootstrap_done_callback(sn_nsdl_oma_server_info_t *server_info);
-
-    /**
      * @brief Callback when there is data received from server and needs to be processed.
      * @param data, data received from server.
      * @param data_size, data size received from server.
@@ -204,6 +202,18 @@ public:
      */
     void stop_timers();
 
+    /**
+     * @brief Returns nsdl handle.
+     * @return ndsl handle
+     */
+    nsdl_s* get_nsdl_handle();
+
+    /**
+     * @brief Get endpoint name
+     * @return endpoint name
+     */
+    const String& endpoint_name() const;
+
 protected: // from M2MTimerObserver
 
     virtual void timer_expired(M2MTimerObserver::Type type);
@@ -215,7 +225,7 @@ protected: // from M2MObservationHandler
                                         m2m::Vector<uint16_t> changed_instance_ids,
                                         bool send_object = false);
 
-    virtual void resource_to_be_deleted(const String &resource_name);
+    virtual void resource_to_be_deleted(M2MBase* base);
 
     virtual void value_updated(M2MBase *base, const String &object_name);
 
@@ -238,10 +248,9 @@ private:
     bool create_nsdl_object_instance_structure(M2MObjectInstance *object_instance);
 
     bool create_nsdl_resource_structure(M2MResource *resource,
-                                        const String &object_name = "",
                                         bool multiple_instances = false);
 
-    bool create_nsdl_resource(M2MBase *base, const String &name = "", bool publish_uri = true);
+    bool create_nsdl_resource(M2MBase *base);
 
     String coap_to_string(uint8_t *coap_data_ptr,
                           int coap_data_ptr_length);
@@ -250,21 +259,27 @@ private:
 
     uint64_t registration_time();
 
-    M2MBase* find_resource(const String &object);
+    M2MBase* find_resource(const String &object,
+                           uint8_t *token = NULL,
+                           uint8_t token_len = 0);
 
     M2MBase* find_resource(const M2MObject *object,
-                           const String &object_instance);
+                           const String &object_instance,
+                           uint8_t *token = NULL,
+                           uint8_t token_len = 0);
 
     M2MBase* find_resource(const M2MObjectInstance *object_instance,
-                           const String &resource_instance);
+                           const String &resource_instance,
+                           uint8_t *token = NULL,
+                           uint8_t token_len = 0);
 
     M2MBase* find_resource(const M2MResource *resource,
                            const String &object_name,
-                           const String &resource_instance);
+                           const String &resource_instance,
+                           uint8_t *token = NULL,
+                           uint8_t token_len = 0);
 
     bool object_present(M2MObject * object) const;
-
-    void clear_resource(sn_nsdl_resource_info_s *&resource);
 
     M2MInterface::Error interface_error(sn_coap_hdr_s *coap_header);
 
@@ -278,31 +293,100 @@ private:
 
     void send_resource_observation(M2MResource *resource, uint16_t obs_number);
 
-    void build_observation_number(uint8_t *obs_number,
-                                  uint8_t *obs_len,
-                                  uint16_t number);
+    void send_notification(uint8_t *token,
+                           uint8_t  token_length,
+                           uint8_t *value,
+                           uint32_t value_length,
+                           uint16_t observation,
+                           uint32_t max_age,
+                           uint8_t  coap_content_type);
+
+    /**
+     * @brief Allocate (size + 1) amount of memory, copy size bytes into
+     * it and add zero termination.
+     * @param source Source string to copy, may not be NULL.
+     * @param size The size of memory to be reserved.
+    */
+    static uint8_t* alloc_string_copy(const uint8_t* source, uint16_t size);
+
+    /**
+     * @brief Utility method to convert given lifetime int to ascii
+     * and allocate a buffer for it and set it to _endpoint->lifetime_ptr.
+     * @param lifetime A new value for lifetime.
+    */
+    void set_endpoint_lifetime_buffer(int lifetime);
+
+    /**
+     * @brief Handle incoming bootstrap PUT message.
+     * @param coap_header, Received CoAP message
+     * @param address, Server address
+    */
+    void handle_bootstrap_put_message(sn_coap_hdr_s *coap_header, sn_nsdl_addr_s *address);
+
+    /**
+     * @brief Handle bootstrap finished message.
+     * @param coap_header, Received CoAP message
+     * @param address, Server address
+    */
+    void handle_bootstrap_finished(sn_coap_hdr_s *coap_header,sn_nsdl_addr_s *address);
+
+    /**
+     * @brief Handle bootstrap delete message.
+     * @param coap_header, Received CoAP message
+     * @param address, Server address
+    */
+    void handle_bootstrap_delete(sn_coap_hdr_s *coap_header,sn_nsdl_addr_s *address);
+
+    /**
+     * @brief Parse bootstrap TLV message.
+     * @param coap_header, Received CoAP message
+     * @return True if parsing was succesful else false
+    */
+    bool parse_bootstrap_message(sn_coap_hdr_s *coap_header, bool is_security_object);
+
+    /**
+     * @brief Parse bootstrap TLV message.
+     * @param coap_header, Received CoAP message
+     * @return True if parsing was succesful else false
+    */
+    bool validate_security_object();
+
+    /**
+     * @brief Handle bootstrap errors.
+    */
+    void handle_bootstrap_error();
+
+    /**
+     * @brief Claim
+     */
+    void claim_mutex();
+
+    /**
+     * @brief Release
+     */
+    void release_mutex();
 
 private:
 
-    M2MNsdlObserver                   &_observer;
-    M2MObjectList                      _object_list;
-    M2MServer                         *_server;
-    M2MTimer                          *_nsdl_exceution_timer;
-    M2MTimer                          *_registration_timer;
-    sn_nsdl_ep_parameters_s           *_endpoint;
-    sn_nsdl_resource_info_s           *_resource;
-    sn_nsdl_bs_ep_info_t               _bootstrap_endpoint;
-    sn_nsdl_oma_device_t               _bootstrap_device_setup;
-    sn_nsdl_addr_s                     _sn_nsdl_address;
-    nsdl_s                            *_nsdl_handle;
-    uint32_t                           _counter_for_nsdl;
-    uint16_t                           _register_id;
-    uint16_t                           _unregister_id;
-    uint16_t                           _update_id;
-    uint16_t                           _bootstrap_id;
+    M2MNsdlObserver                         &_observer;
+    M2MObjectList                            _object_list;
+    sn_nsdl_ep_parameters_s                 *_endpoint;
+    nsdl_s                                  *_nsdl_handle;
+    M2MSecurity                             *_security; // Not owned
+    M2MServer                               _server;
+    M2MTimer                                *_nsdl_exceution_timer;
+    M2MTimer                                *_registration_timer;
+    M2MConnectionHandler                    &_connection_handler;
+    sn_nsdl_addr_s                          _sn_nsdl_address;
+    String                                  _endpoint_name;
+    uint32_t                                _counter_for_nsdl;
+    uint16_t                                _bootstrap_id;
+    bool                                    _unregister_ongoing;
+    bool                                    _identity_accepted;
 
 friend class Test_M2MNsdlInterface;
 
 };
 
 #endif // M2MNSDLINTERFACE_H
+

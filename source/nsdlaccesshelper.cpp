@@ -16,36 +16,40 @@
 #include "include/nsdlaccesshelper.h"
 #include "include/m2mnsdlinterface.h"
 
-// callback function for NSDL library to call into
-M2MNsdlInterface  *__nsdl_interface = NULL;
+#include <stdlib.h>
 
+// callback function for NSDL library to call into
 uint8_t __nsdl_c_callback(struct nsdl_s *nsdl_handle,
                           sn_coap_hdr_s *received_coap_ptr,
                           sn_nsdl_addr_s *address,
                           sn_nsdl_capab_e nsdl_capab)
 {
     uint8_t status = 0;
-    if(__nsdl_interface) {
-        status = __nsdl_interface->resource_callback(nsdl_handle,received_coap_ptr,
+    M2MNsdlInterface *interface = (M2MNsdlInterface*)sn_nsdl_get_context(nsdl_handle);
+    if(interface) {
+        status = interface->resource_callback(nsdl_handle,received_coap_ptr,
                                                      address, nsdl_capab);
+        // Payload freeing must be done in app level if blockwise message
+        if (received_coap_ptr->coap_status == COAP_STATUS_PARSER_BLOCKWISE_MSG_RECEIVED) {
+            free(received_coap_ptr->payload_ptr);
+            received_coap_ptr->payload_ptr = NULL;
+        }
     }
     return status;
 }
 
 void* __nsdl_c_memory_alloc(uint16_t size)
 {
-    void * val = NULL;
-    if(__nsdl_interface) {
-        val = __nsdl_interface->memory_alloc(size);
-    }
-    return val;
+    if(size)
+        return malloc(size);
+    else
+        return 0;
 }
 
 void __nsdl_c_memory_free(void *ptr)
 {
-    if(__nsdl_interface) {
-        __nsdl_interface->memory_free(ptr);
-    }
+    if(ptr)
+        free(ptr);
 }
 
 uint8_t __nsdl_c_send_to_server(struct nsdl_s * nsdl_handle,
@@ -55,8 +59,9 @@ uint8_t __nsdl_c_send_to_server(struct nsdl_s * nsdl_handle,
                                 sn_nsdl_addr_s *address_ptr)
 {
     uint8_t status = 0;
-    if(__nsdl_interface) {
-        status = __nsdl_interface->send_to_server_callback(nsdl_handle,
+    M2MNsdlInterface *interface = (M2MNsdlInterface*)sn_nsdl_get_context(nsdl_handle);
+    if(interface) {
+        status = interface->send_to_server_callback(nsdl_handle,
                                                            protocol, data_ptr,
                                                            data_len, address_ptr);
     }
@@ -68,21 +73,20 @@ uint8_t __nsdl_c_received_from_server(struct nsdl_s * nsdl_handle,
                                       sn_nsdl_addr_s *address_ptr)
 {
     uint8_t status = 0;
-    if(__nsdl_interface) {
-        status = __nsdl_interface->received_from_server_callback(nsdl_handle,
+    M2MNsdlInterface *interface = (M2MNsdlInterface*)sn_nsdl_get_context(nsdl_handle);
+    if(interface) {
+        status = interface->received_from_server_callback(nsdl_handle,
                                                                  coap_header,
                                                                  address_ptr);
+        // Payload freeing must be done in app level if blockwise message
+        if (coap_header &&
+                coap_header->options_list_ptr &&
+                coap_header->options_list_ptr->block1 != -1) {
+            free(coap_header->payload_ptr);
+            coap_header->payload_ptr = NULL;
+        }
     }
     return status;
-}
-
-void __nsdl_c_bootstrap_done(sn_nsdl_oma_server_info_t *server_info_ptr)
-{
-#ifndef YOTTA_CFG_DISABLE_BOOTSTRAP_FEATURE
-    if(__nsdl_interface) {
-        __nsdl_interface->bootstrap_done_callback(server_info_ptr);
-    }
-#endif //YOTTA_CFG_DISABLE_BOOTSTRAP_FEATURE
 }
 
 void* __socket_malloc( void * context, size_t size)
@@ -96,3 +100,4 @@ void __socket_free(void * context, void * ptr)
     (void) context;
     free(ptr);
 }
+

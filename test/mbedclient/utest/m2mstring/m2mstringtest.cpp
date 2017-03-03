@@ -36,6 +36,11 @@ TEST(M2MString, Create)
     CHECK(m2m_string != NULL);
 }
 
+TEST(M2MString, string_and_len_constructor)
+{
+    m2m_string->test_string_and_len_constructor();
+}
+
 TEST(M2MString, copy_constructor)
 {
     m2m_string->test_copy_constructor();
@@ -129,6 +134,16 @@ TEST(M2MString, test_erase)
 TEST(M2MString, test_append)
 {
     m2m_string->test_append();
+}
+
+TEST(M2MString, test_append_raw)
+{
+    m2m_string->test_append_raw();
+}
+
+TEST(M2MString, test_append_int)
+{
+    m2m_string->test_append_int();
 }
 
 TEST(M2MString, test_compare)

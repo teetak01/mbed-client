@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stdio.h>
 #include "include/m2mtlvdeserializer.h"
 #include "mbed-client/m2mconstants.h"
 #include "include/nsdllinker.h"
-#include "ns_trace.h"
+#include "mbed-trace/mbed_trace.h"
 
+#define TRACE_GROUP "mClt"
 #define BUFFER_SIZE 10
 
 M2MTLVDeserializer::M2MTLVDeserializer()
@@ -136,16 +136,16 @@ M2MTLVDeserializer::Error M2MTLVDeserializer::deserialize_object_instances(uint8
     if (TYPE_OBJECT_INSTANCE == til->_type) {
         for (; it!=list.end(); it++) {
             if((*it)->instance_id() == til->_id) {
-                error = deserialize_resources(tlv, tlv_size-offset, offset, (**it),operation, update_value);
+                error = deserialize_resources(tlv, tlv_size, offset, (**it),operation, update_value);
             }
         }
         offset += til->_length;
 
         if(offset < tlv_size) {
-            error = deserialize_object_instances(tlv, tlv_size-offset, offset, object, operation, update_value);
+            error = deserialize_object_instances(tlv, tlv_size, offset, object, operation, update_value);
         }
-        delete til;
     }
+    delete til;
     return error;
 }
 
@@ -185,20 +185,16 @@ M2MTLVDeserializer::Error M2MTLVDeserializer::deserialize_resources(uint8_t *tlv
                     error = M2MTLVDeserializer::NotAllowed;
                     break;
                 }
-            }            
+            }
         }
         if(!found) {
             if(M2MTLVDeserializer::Post == operation) {
                 //Create a new Resource
-                char *buffer = (char*)malloc(BUFFER_SIZE);
-                if(buffer) {
-                    snprintf(buffer, BUFFER_SIZE, "%d",til->_id);
-                    String id(buffer);
-                    M2MResource *resource = object_instance.create_dynamic_resource(id,"",M2MResourceInstance::INTEGER,true,false);
-                    if(resource) {
-                        resource->set_operation(M2MBase::GET_PUT_POST_DELETE_ALLOWED);
-                    }
-                    free(buffer);
+                String id;
+                id.append_int(til->_id);
+                M2MResource *resource = object_instance.create_dynamic_resource(id,"",M2MResourceInstance::INTEGER,true,false);
+                if(resource) {
+                    resource->set_operation(M2MBase::GET_PUT_POST_DELETE_ALLOWED);
                 }
             } else if(M2MTLVDeserializer::Put == operation) {
                 error = M2MTLVDeserializer::NotFound;
@@ -220,7 +216,7 @@ M2MTLVDeserializer::Error M2MTLVDeserializer::deserialize_resources(uint8_t *tlv
 
     delete til;
     if(offset < tlv_size) {
-        error = deserialize_resources(tlv, tlv_size-offset, offset, object_instance, operation, update_value);
+        error = deserialize_resources(tlv, tlv_size, offset, object_instance, operation, update_value);
     }
     return error;
 }
@@ -367,7 +363,7 @@ bool M2MTLVDeserializer::is_resource(uint8_t *tlv, uint32_t offset)
     }
     return ret;
 }
-    
+
 bool M2MTLVDeserializer::is_multiple_resource(uint8_t *tlv, uint32_t offset)
 {
     bool ret = false;
@@ -376,7 +372,7 @@ bool M2MTLVDeserializer::is_multiple_resource(uint8_t *tlv, uint32_t offset)
     }
     return ret;
 }
-    
+
 bool M2MTLVDeserializer::is_resource_instance(uint8_t *tlv, uint32_t offset)
 {
     bool ret = false;

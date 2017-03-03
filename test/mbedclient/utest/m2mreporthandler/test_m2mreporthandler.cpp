@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 #include "CppUTest/TestHarness.h"
+#include "CppUTestExt/MockSupport.h"
+#include "m2mtimer_stub.h"
 #include "test_m2mreporthandler.h"
 #include "m2mobservationhandler.h"
 #include "m2mtimer.h"
@@ -24,7 +26,7 @@ class Observer : public M2MReportObserver{
 
 public:
 
-    Observer(){}
+    Observer() : visited(false) {}
     virtual ~Observer(){}
     void observation_to_be_sent(m2m::Vector<uint16_t>,bool){
         visited = true;
@@ -35,7 +37,7 @@ public:
 class TimerObserver : public M2MTimerObserver
 {
 public:
-    TimerObserver(){}
+    TimerObserver() : visited(false) {}
     virtual ~TimerObserver(){}
 
     virtual void timer_expired(M2MTimerObserver::Type ){
@@ -56,19 +58,29 @@ Test_M2MReportHandler::~Test_M2MReportHandler()
 {
     delete _handler;
     delete _observer;
+    m2mtimer_stub::clear();
 }
 
 void Test_M2MReportHandler::test_set_under_observation()
 {    
+    m2mtimer_stub::enable_mock = true;
+
     _observer->visited = false;
 
+    mock().clear();
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmin_timer);
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmax_timer);
     _handler->set_under_observation(true);
     CHECK(false == _observer->visited);
-    CHECK(_handler->_pmin_timer == NULL);
 
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmin_timer);
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmax_timer);
     _observer->visited = false;    
     _handler->set_under_observation(false);
-    CHECK(false == _observer->visited);        
+    CHECK(false == _observer->visited);
+    mock().checkExpectations();
+
+    m2mtimer_stub::enable_mock = false;
 }
 
 void Test_M2MReportHandler::test_parse_notification_attribute()
@@ -204,7 +216,7 @@ void Test_M2MReportHandler::test_parse_notification_attribute()
     DOUBLES_EQUAL(0,_handler->_st,0);
     DOUBLES_EQUAL(0,_handler->_high_step,0);
     DOUBLES_EQUAL(0,_handler->_low_step,0);
-    DOUBLES_EQUAL(0,_handler->_last_value,0);
+    DOUBLES_EQUAL(-1,_handler->_last_value,0);
     DOUBLES_EQUAL(0,_handler->_attribute_state,0);
     CHECK_FALSE(_handler->_pmin_exceeded);
     CHECK_FALSE(_handler->_pmax_exceeded);
@@ -216,24 +228,24 @@ void Test_M2MReportHandler::test_timer_expired()
     CHECK(_observer->visited == false);
 
     _handler->_notify = true;
-    _handler->_pmin_exceeded = true;    
+    _handler->_pmin_exceeded = true;
     _handler->timer_expired(M2MTimerObserver::PMaxTimer);
-    CHECK(_handler->_pmax_exceeded == true);
     CHECK(_observer->visited == true);
 
     _handler->_pmin_exceeded = false;
     _handler->_notify = false;
     _handler->_attribute_state = M2MReportHandler::Pmax;
+    _handler->_current_value = 100;
     _handler->timer_expired(M2MTimerObserver::PMinTimer);
     CHECK(_handler->_pmin_exceeded == true);
 
     _observer->visited = false;
-    _handler->_notify = true;    
-    _handler->timer_expired(M2MTimerObserver::PMinTimer);    
+    _handler->_notify = true;
+    _handler->timer_expired(M2MTimerObserver::PMinTimer);
     CHECK(_observer->visited == true);
 
     _handler->_notify = true;
-    _handler->_pmin_exceeded = true;    
+    _handler->_pmin_exceeded = true;
     _handler->timer_expired(M2MTimerObserver::PMinTimer);
     CHECK(_handler->_pmin_exceeded == true);
 
@@ -382,35 +394,57 @@ void Test_M2MReportHandler::test_set_string_notification_trigger()
 
 void Test_M2MReportHandler::test_timers()
 {
+    m2mtimer_stub::enable_mock = true;
+    // No timers should start when _attribute_state == 0
     _handler->handle_timers();
-    CHECK(_handler->_pmin_timer == NULL);
+    mock().checkExpectations();
 
+    // pmin starts when _attribute_state |= pmin
+    mock().clear();
+    mock().expectOneCall("start_timer").onObject(&_handler->_pmin_timer);
     _handler->_attribute_state |= M2MReportHandler::Pmin;
     _handler->handle_timers();
-    CHECK(_handler->_pmin_timer != NULL);
+    mock().checkExpectations();
 
+    // pmin gets stopped
+    mock().clear();
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmin_timer);
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmax_timer);
     _handler->stop_timers();
-    CHECK(_handler->_pmin_timer == NULL);
+    mock().checkExpectations();
 
+    // pmin starts when _attribute_state |= pmin & pmax but _pmax value is default -1
+    // pmax should not start
+    mock().clear();
+    mock().expectOneCall("start_timer").onObject(&_handler->_pmin_timer);
     _handler->_attribute_state |= M2MReportHandler::Pmax;
     _handler->handle_timers();
-    CHECK(_handler->_pmin_timer != NULL);
-    CHECK(_handler->_pmax_timer == NULL);
+    mock().checkExpectations();
 
+    // pmin and pmax get stopped
+    mock().clear();
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmin_timer);
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmax_timer);
     _handler->stop_timers();
-    CHECK(_handler->_pmin_timer == NULL);
-    CHECK(_handler->_pmax_timer == NULL);
+    mock().checkExpectations();
 
+    // max timer is started when pmax == pmin
+    mock().clear();
+    mock().expectOneCall("start_timer").onObject(&_handler->_pmax_timer);
     _handler->_pmax = 2;
     _handler->_pmin = 2;
     _handler->handle_timers();
-    CHECK(_handler->_pmin_timer == NULL);
-    CHECK(_handler->_pmax_timer != NULL);
+    mock().checkExpectations();
     CHECK(_handler->_pmin_exceeded == true);
 
+    /*
+    mock().clear();
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmin_timer);
+    mock().expectOneCall("stop_timer").onObject(&_handler->_pmax_timer);
     _handler->stop_timers();
-    CHECK(_handler->_pmin_timer == NULL);
-    CHECK(_handler->_pmax_timer == NULL);
+    mock().checkExpectations();
+*/
+    m2mtimer_stub::enable_mock = false;
 }
 
 void Test_M2MReportHandler::test_attribute_flags()

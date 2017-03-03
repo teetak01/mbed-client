@@ -36,7 +36,6 @@ char* String::strdup(const char* s)
 String::String()
     : p( strdup("") )
 {
-    _return_value = '\0';
 }
 
 String::~String()
@@ -55,13 +54,21 @@ String::String(const String& s)
         size_      = s.size_;
         memcpy(p, s.p, size_ + 1);
     }
-    _return_value = '\0';
 }
 
 String::String(const char* s)
     : p(strdup(s))
 {
-    _return_value = '\0';
+}
+
+String::String(const char* str, size_t n)
+{
+    p = static_cast<char*>(malloc(n + 1));
+
+    allocated_ = n + 1;
+    size_      = n;
+    memcpy(p, str, n);
+    p[n] = 0;
 }
 
 String& String::operator=(const char* s)
@@ -179,16 +186,6 @@ String String::substr(const size_type pos, size_type length) const
 
 
 // checked access, accessing the NUL at end is allowed
-char& String::at(const size_type i)
-{
-    if ( i <= strlen(p) ) {
-        _return_value = p[i];
-    } else {
-        _return_value = '\0';
-    }
-    return _return_value;
-}
-
 char String::at(const size_type i) const
 {
     if ( i <= strlen(p) ) {
@@ -234,6 +231,26 @@ String& String::append( const char* str, size_type n) {
         size_ = newlen;
     }
     return *this;
+}
+
+String& String::append_raw( const char* str, size_type n) {
+    if (str && n > 0) {
+        size_t newlen = size_ + n;
+        this->reserve( newlen );
+        memmove(p+size_, str, n); // p and s.p MAY overlap
+        p[newlen] = 0; // add NUL termination
+        size_ = newlen;
+    }
+    return *this;
+}
+
+void String::append_int(int param) {
+
+    // max len of "-9223372036854775808" plus zero termination
+    char conv_buff[20+1];
+
+    int len = itoa_c(param, conv_buff);
+    append_raw(conv_buff, len);
 }
 
 int String::compare( size_type pos, size_type len, const String& str ) const {
@@ -363,99 +380,50 @@ uint32_t itoa_c (int64_t n, char s[])
     return i;
 }
 
-uint8_t* String::convert_integer_to_array(int64_t value, uint8_t &size)
+uint8_t* String::convert_integer_to_array(int64_t value, uint8_t &size, uint8_t *array, uint32_t array_size)
 {
-    uint8_t* buffer;
-    if(value < 255) { // 0xFF
-        buffer = (uint8_t*)malloc(1);
-        *buffer = value;
+    uint8_t* buffer = NULL;
+    size = 0;
+    if (array) {
+        value = String::convert_array_to_integer(array, array_size);
+    }
+
+    if(value < 0xFF) {
         size = 1;
-    } else if(value < 0xFFFF) { // 0xFFFF
-        buffer = (uint8_t*)malloc(2);
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
+    } else if(value < 0xFFFF) {
         size = 2;
-    } else if(value < 0xFFFFFF) { // 0xFFFFFF 16777215
-        buffer = (uint8_t*)malloc(3);
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
+    } else if(value < 0xFFFFFF) {
         size = 3;
-    } else if(value < 0xFFFFFFFF) { // 4294967295
-        buffer = (uint8_t*)malloc(4);
-        *buffer++ = value >> 24;
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
-        buffer--;
+    } else if(value < 0xFFFFFFFF) {
         size = 4;
-    } else if(value < 0xFFFFFFFFFF) { // 1099511627775
-        buffer = (uint8_t*)malloc(5);
-        *buffer++ = value >> 32;
-        *buffer++ = value >> 24;
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
+    } else if(value < 0xFFFFFFFFFF) {
         size = 5;
-    } else if(value < 0xFFFFFFFFFFFF) { // 281474976710655
-        buffer = (uint8_t*)malloc(6);
-        *buffer++ = value >> 40;
-        *buffer++ = value >> 32;
-        *buffer++ = value >> 24;
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
+    } else if(value < 0xFFFFFFFFFFFF) {
         size = 6;
-    } else if(value < 0xFFFFFFFFFFFFFF) { // 72057594037927935
-        buffer = (uint8_t*)malloc(7);
-        *buffer++ = value >> 48;
-        *buffer++ = value >> 40;
-        *buffer++ = value >> 32;
-        *buffer++ = value >> 24;
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
+    } else if(value < 0xFFFFFFFFFFFFFF) {
         size = 7;
     } else {
-        buffer = (uint8_t*)malloc(8);
-        *buffer++ = value >> 56;
-        *buffer++ = value >> 48;
-        *buffer++ = value >> 40;
-        *buffer++ = value >> 32;
-        *buffer++ = value >> 24;
-        *buffer++ = value >> 16;
-        *buffer++ = value >> 8;
-        *buffer = value;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
-        buffer--;
         size = 8;
     }
+
+    buffer = (uint8_t*)malloc(size);
+    if (buffer) {
+        for (int i = 0; i < size; i++) {
+            buffer[i] = (value >> ((size - i - 1) * 8));
+        }
+    } else {
+        size = 0;
+    }
     return buffer;
+}
+
+int64_t String::convert_array_to_integer(uint8_t *value, uint32_t size)
+{
+    int64_t temp_64 = 0;
+    for (int i = size - 1; i >= 0; i--) {
+        temp_64 += (uint64_t)(*value++) << i * 8;
+    }
+    return temp_64;
 }
 
 } // namespace

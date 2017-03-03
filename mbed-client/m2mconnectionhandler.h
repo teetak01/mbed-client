@@ -24,7 +24,7 @@
 class M2MConnectionSecurity;
 class M2MConnectionHandlerPimpl;
 
-/**
+/*! \file m2mconnectionhandler.h
  * \brief M2MConnectionHandler.
  * This class handles the socket connection for the LWM2M Client.
  */
@@ -34,13 +34,21 @@ public:
 
     /**
      * @enum ConnectionError
-     * This enum defines an error that can come from
+     * This enum defines an error that can come from the
      * socket read and write operation.
      */
     typedef enum {
         CONNECTION_ERROR_WANTS_READ = -1000,
-        CONNECTION_ERROR_WANTS_WRITE = -1001
+        CONNECTION_ERROR_WANTS_WRITE = -1001,
+        ERROR_NONE = 0,
+        SSL_CONNECTION_ERROR,
+        SOCKET_READ_ERROR,
+        SOCKET_SEND_ERROR,
+        SOCKET_ABORT,
+        DNS_RESOLVING_ERROR,
+        SSL_HANDSHAKE_ERROR
     }ConnectionError;
+
 
 public:
 
@@ -59,20 +67,20 @@ public:
 
     /**
     * \brief This binds the socket connection.
-    * \param listen_port Port to be listened to for an incoming connection.
+    * \param listen_port The port to be listened to for an incoming connection.
     * \return True if successful, else false.
     */
     bool bind_connection(const uint16_t listen_port);
 
     /**
-    * \brief This resolves the server address. Output is
+    * \brief This resolves the server address. The output is
     * returned through a callback.
     * \param String The server address.
     * \param uint16_t The server port.
     * \param ServerType The server type to be resolved.
     * \param security The M2MSecurity object that determines which
-    * type of secure connection will be used by the socket.
-    * \return True if address is valid, else false.
+    * type of secure connection is used by the socket.
+    * \return True if the address is valid, else false.
     */
     bool resolve_server_address(const String& server_address,
                                 const uint16_t server_port,
@@ -102,20 +110,20 @@ public:
     void stop_listening();
 
     /**
-     * \brief Sends directly to the socket. This is used by
+     * \brief Sends directly to the socket. This is used by the
      * security classes to send the data after it has been encrypted.
-     * \param buf Buffer to send.
+     * \param buf The buffer to send to.
      * \param len The length of the buffer.
-     * \return Number of bytes sent or -1 if failed.
+     * \return The number of bytes sent, or -1 if failed.
      */
     int send_to_socket(const unsigned char *buf, size_t len);
 
     /**
      * \brief Receives directly from the socket. This
      * is used by the security classes to receive raw data to be decrypted.
-     * \param buf Buffer to send.
+     * \param buf The buffer to send to.
      * \param len The length of the buffer.
-     * \return Number of bytes read or -1 if failed.
+     * \return The number of bytes read, or -1 if failed.
      */
     int receive_from_socket(unsigned char *buf, size_t len);
 
@@ -126,9 +134,30 @@ public:
 
     /**
     * \brief Error handling for DTLS connectivity.
-    * \param error Error code from the TLS library.
+    * \param error An error code from the TLS library.
     */
     void handle_connection_error(int error);
+
+    /**
+     * \brief Sets the network interface handler that is used by the client to connect
+     * to a network over IP.
+     * \param handler A network interface handler that is used by the client to connect.
+     *  This API is optional but it provides a mechanism for different platforms to
+     * manage the usage of underlying network interface by client.
+     */
+    void set_platform_network_handler(void *handler = NULL);
+
+    /**
+    * \brief Claims mutex to prevent thread clashes
+    * in multithreaded environment.
+    */
+    void claim_mutex();
+
+    /**
+    * \brief Releases mutex to prevent thread clashes
+    * in multithreaded environment.
+    */
+    void release_mutex();
 
 private:
 

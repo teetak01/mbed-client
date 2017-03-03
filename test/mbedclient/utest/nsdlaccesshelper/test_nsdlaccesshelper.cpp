@@ -18,8 +18,11 @@
 #include "common_stub.h"
 #include "m2mnsdlinterface_stub.h"
 #include "m2mnsdlobserver.h"
+#include "m2mconnectionobserver.h"
 
-class TestObserver : public M2MNsdlObserver {
+class TestObserver : public M2MNsdlObserver,
+                     public M2MConnectionObserver
+{
 
 public:
     TestObserver(){}
@@ -38,7 +41,7 @@ public:
 
     }
 
-    void registration_error(uint8_t){
+    void registration_error(uint8_t, bool retry = false){
         register_error = true;
     }
 
@@ -52,6 +55,11 @@ public:
         }
     }
 
+    void bootstrap_wait(M2MSecurity *sec){
+        if(sec) {
+            boot_wait = true;
+        }
+    }
     void bootstrap_error(){
         boot_error = true;
     }
@@ -63,8 +71,29 @@ public:
     void value_updated(M2MBase *){
     }
 
+    void data_available(uint8_t*,
+                        uint16_t,
+                        const M2MConnectionObserver::SocketAddress &) {
+
+    }
+
+    void socket_error(uint8_t, bool) {
+
+    }
+
+    void address_ready(const M2MConnectionObserver::SocketAddress &,
+                               M2MConnectionObserver::ServerType,
+                               const uint16_t) {
+
+    }
+
+    void data_sent() {
+
+    }
+
     bool register_error;
     bool boot_error;
+    bool boot_wait;
     bool boot_done;
     bool registered;
     bool data_processed;
@@ -74,41 +103,48 @@ public:
 };
 
 Test_NsdlAccessHelper::Test_NsdlAccessHelper()
-{    
+{
     observer = new TestObserver();
+    connection_handler = new M2MConnectionHandler(*observer, NULL, M2MInterface::NOT_SET, M2MInterface::Uninitialized);
 }
 
 Test_NsdlAccessHelper::~Test_NsdlAccessHelper()
 {
+    delete connection_handler;
+    connection_handler = NULL;
     delete observer;
     observer = NULL;
 }
 
 void Test_NsdlAccessHelper::test_nsdl_c_callback()
 {
-
+    common_stub::void_value = NULL;
     CHECK(__nsdl_c_callback(NULL,NULL,NULL,SN_NSDL_PROTOCOL_HTTP) == 0 );
 
     m2mnsdlinterface_stub::int_value = 1;
-    __nsdl_interface = new M2MNsdlInterface(*observer);
+    m2mnsdlinterface_stub::void_value = malloc(1);
+    common_stub::void_value = new M2MNsdlInterface(*observer, *connection_handler);
+    common_stub::coap_header = (sn_coap_hdr_s *) malloc(sizeof(sn_coap_hdr_s));
+    memset(common_stub::coap_header, 0, sizeof(sn_coap_hdr_s));
+    common_stub::coap_header->options_list_ptr = (sn_coap_options_list_s *) malloc(sizeof(sn_coap_options_list_s));
+    common_stub::coap_header->options_list_ptr->block1 = 0x0101;
 
-    CHECK(__nsdl_c_callback(NULL,NULL,NULL,SN_NSDL_PROTOCOL_HTTP) == 1 );
-
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
+    CHECK(__nsdl_c_callback((nsdl_s*)m2mnsdlinterface_stub::void_value,
+                            common_stub::coap_header,NULL,SN_NSDL_PROTOCOL_HTTP) == 1 );
+    free(common_stub::coap_header->options_list_ptr);
+    free(common_stub::coap_header);
+    delete (M2MNsdlInterface*)common_stub::void_value;
+    free(m2mnsdlinterface_stub::void_value);
 }
 
 void Test_NsdlAccessHelper::test_nsdl_c_memory_alloc()
 {
     void *ptr = __nsdl_c_memory_alloc(6);
-    CHECK(ptr == NULL);
-
-    __nsdl_interface = new M2MNsdlInterface(*observer);
-    ptr = __nsdl_c_memory_alloc(6);
     CHECK(ptr != NULL);
-
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
+    free(ptr);
+    ptr = NULL;
+    ptr = __nsdl_c_memory_alloc(UINT16_MAX+1);
+    CHECK(ptr == NULL);
     free(ptr);
 }
 
@@ -119,49 +155,45 @@ void Test_NsdlAccessHelper::test_nsdl_c_memory_free()
 
     CHECK(ptr != NULL);
 
-    __nsdl_interface = new M2MNsdlInterface(*observer);
-    __nsdl_c_memory_free(ptr);
-
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
     ptr = NULL;
     //No need to check anything, since memory leak is the test
 }
 
 void Test_NsdlAccessHelper::test_nsdl_c_send_to_server()
 {
+    common_stub::void_value = NULL;
     CHECK(__nsdl_c_send_to_server(NULL, SN_NSDL_PROTOCOL_HTTP, NULL, 0, NULL) == 0);
 
-    m2mnsdlinterface_stub::int_value = 1;
-    __nsdl_interface = new M2MNsdlInterface(*observer);
+    common_stub::void_value = new M2MNsdlInterface(*observer, *connection_handler);
     CHECK(__nsdl_c_send_to_server(NULL, SN_NSDL_PROTOCOL_HTTP, NULL, 0, NULL) == 1);
 
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
+    m2mnsdlinterface_stub::int_value = 1;
+    m2mnsdlinterface_stub::void_value = malloc(1);
+
+    CHECK(__nsdl_c_send_to_server((nsdl_s*)m2mnsdlinterface_stub::void_value, SN_NSDL_PROTOCOL_HTTP, NULL, 0, NULL) == 1);
+    free(m2mnsdlinterface_stub::void_value);
+    delete (M2MNsdlInterface*)common_stub::void_value;
 }
 
 void Test_NsdlAccessHelper::test_nsdl_c_received_from_server()
 {
+    common_stub::void_value = NULL;
+    CHECK( 0 == __nsdl_c_received_from_server(NULL, NULL, NULL));
+
+    common_stub::void_value = new M2MNsdlInterface(*observer, *connection_handler);
     CHECK( 0 == __nsdl_c_received_from_server(NULL, NULL, NULL));
 
     m2mnsdlinterface_stub::int_value = 1;
-    __nsdl_interface = new M2MNsdlInterface(*observer);
-    CHECK( 1 == __nsdl_c_received_from_server(NULL, NULL, NULL));
-
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
-}
-
-void Test_NsdlAccessHelper::test_nsdl_c_bootstrap_done()
-{
-    __nsdl_c_bootstrap_done(NULL);
-
-    m2mnsdlinterface_stub::int_value = 1;
-    __nsdl_interface = new M2MNsdlInterface(*observer);
-    __nsdl_c_bootstrap_done(NULL);
-
-    delete __nsdl_interface;
-    __nsdl_interface = NULL;
+    m2mnsdlinterface_stub::void_value = malloc(1);
+    common_stub::coap_header = (sn_coap_hdr_s *) malloc(sizeof(sn_coap_hdr_s));
+    memset(common_stub::coap_header, 0, sizeof(sn_coap_hdr_s));
+    common_stub::coap_header->options_list_ptr = (sn_coap_options_list_s *) malloc(sizeof(sn_coap_options_list_s));
+    common_stub::coap_header->options_list_ptr->block1 = 0x0101;
+    CHECK( 1 == __nsdl_c_received_from_server((nsdl_s*)m2mnsdlinterface_stub::void_value, common_stub::coap_header, NULL));
+    free(common_stub::coap_header->options_list_ptr);
+    free(common_stub::coap_header);
+    delete (M2MNsdlInterface*)common_stub::void_value;
+    free(m2mnsdlinterface_stub::void_value);
 }
 
 void Test_NsdlAccessHelper::test_socket_malloc()
@@ -180,5 +212,4 @@ void Test_NsdlAccessHelper::test_socket_free()
     ptr = NULL;
     //No need to check anything, since memory leak is the test
 }
-
 

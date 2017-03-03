@@ -23,6 +23,8 @@ namespace m2mnsdlinterface_stub
 {
     extern bool bool_value;
     extern uint32_t int_value;
+    extern void* void_value;
+    extern String *string_value;
     void clear();
 }
 

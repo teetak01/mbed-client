@@ -17,7 +17,6 @@
 #define M2M_STRING_H
 
 #include <stddef.h> // size_t
-#include <stdexcept>
 #include <stdint.h>
 
 class Test_M2MString;
@@ -25,23 +24,24 @@ class Test_M2MString;
 namespace m2m
 {
 
-  /** \brief Simple C++ string class, used as replacement for
-   std::string.
+/*! \file m2mstring.h 
+* \brief A simple C++ string class, used as replacement for std::string.
    */
   class String
   {
-    char* p;           ///< The data
-    size_t allocated_;  ///< The allocated memory size (including trailing NULL)
-    size_t size_;       ///< The currently used memory size (excluding trailing NULL)
+    char* p;           ///< The data.
+    size_t allocated_;  ///< The allocated memory size (including trailing NULL).
+    size_t size_;       ///< The currently used memory size (excluding trailing NULL).
 
   public:
     typedef size_t size_type;
     static const size_type npos;
 
     String();
-    virtual ~String();
+    ~String();
     String(const String&);
     String(const char*);
+    String(const char*, size_t);
 
     String& operator=(const char*);
     String& operator=(const String&);
@@ -54,7 +54,7 @@ namespace m2m
     bool operator==(const char*) const;
     bool operator==(const String&) const;
 
-    void clear();       // set string to empty string (memory remains reserved)
+    void clear();       // Set the string to empty (memory remains reserved).
 
     size_type size()   const   { return size_; }   ///< size without terminating NULL
     size_type length() const   { return size_; }   ///< as size()
@@ -67,20 +67,20 @@ namespace m2m
 
     /** Reserve internal string memory so that n characters can be put into the
         string (plus 1 for the NULL char). If there is already enough memory,
-        nothing happens, if not, the memory will be realloated to exactly this
+        nothing happens, if not, the memory is realloated to exactly this
         amount.
         */
     void reserve( size_type n);
 
-    /** Resize string. If n is less than the current size, the string will be truncated.
-        If n is larger, the memory will be reallocated to exactly this amount, and
-        the additional characters will be NULL characters.
+    /** Resize string. If n is less than the current size, the string is truncated.
+        If n is larger, the memory is reallocated to exactly this amount, and
+        the additional characters are NULL characters.
         */
     void resize( size_type n);
 
-    /** Resize string. If n is less than the current size, the string will be truncated.
-        If n is larger, the memory will be reallocated to exactly this amount, and
-        the additional characters will be c characters.
+    /** Resize string. If n is less than the current size, the string is truncated.
+        If n is larger, the memory is reallocated to exactly this amount, and
+        the additional characters are c characters.
         */
     void resize( size_type n, char c);
 
@@ -93,7 +93,6 @@ namespace m2m
     char& operator[](const size_type i)       { return p[i]; }
     char operator[](const size_type i) const { return p[i]; }
     // checked access:
-    char& at(const size_type i);
     char at(const size_type i) const;
 
     /// erase len characters at position pos
@@ -101,19 +100,25 @@ namespace m2m
     /// Append n characters of a string
     String& append(const char* str, size_type n);
 
+    // Append n characters of a non-zero-terminated string
+    // (in contrast with other append(), which performs strlen() for the given string).
+    String& append_raw(const char*, size_type);
+
+    // convert int to ascii and append it to end of string
+    void append_int(int);
+
     int compare( size_type pos, size_type len, const String& str ) const;
     int compare( size_type pos, size_type len, const char*   str ) const;
 
     int find_last_of(char c) const;
 
-    static uint8_t* convert_integer_to_array(int64_t value, uint8_t &size);
+    static uint8_t* convert_integer_to_array(int64_t value, uint8_t &size, uint8_t *array = NULL, uint32_t array_size = 0);
+    static int64_t convert_array_to_integer(uint8_t *value, uint32_t size);
 
   private:
     // reallocate the internal memory
     void new_realloc( size_type n);
     char* strdup(const char* other);
-
-    char _return_value;
 
     friend class ::Test_M2MString;
 

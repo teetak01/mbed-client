@@ -14,23 +14,30 @@
  * limitations under the License.
  */
 #include "m2mnsdlinterface_stub.h"
+#include "m2mconnectionhandler_stub.h"
 
 bool m2mnsdlinterface_stub::bool_value;
 uint32_t m2mnsdlinterface_stub::int_value;
+void * m2mnsdlinterface_stub::void_value;
+String *m2mnsdlinterface_stub::string_value;
 
 void m2mnsdlinterface_stub::clear()
 {
     bool_value = false;
     int_value = 0;
+    *string_value = "";
+    void_value = NULL;
 }
 
-M2MNsdlInterface::M2MNsdlInterface(M2MNsdlObserver &observer)
-: _observer(observer)
+M2MNsdlInterface::M2MNsdlInterface(M2MNsdlObserver &observer, M2MConnectionHandler &connection_handler)
+: _observer(observer), _connection_handler(connection_handler)
 {
+    //m2mnsdlinterface_stub::string_value = new String("");
 }
 
 M2MNsdlInterface::~M2MNsdlInterface()
 {
+    //delete m2mnsdlinterface_stub::string_value;
 }
 
 bool M2MNsdlInterface::initialize()
@@ -56,17 +63,18 @@ bool M2MNsdlInterface::create_nsdl_list_structure(const M2MObjectList &)
     return m2mnsdlinterface_stub::bool_value;
 }
 
-bool M2MNsdlInterface::delete_nsdl_resource(const String &)
+bool M2MNsdlInterface::remove_nsdl_resource(M2MBase* base)
 {
     return m2mnsdlinterface_stub::bool_value;
 }
 
-bool M2MNsdlInterface::create_bootstrap_resource(sn_nsdl_addr_s *)
+bool M2MNsdlInterface::create_bootstrap_resource(sn_nsdl_addr_s *, const String& name)
 {
     return m2mnsdlinterface_stub::bool_value;
 }
 
 bool M2MNsdlInterface::send_register_message(uint8_t*,
+                                             uint8_t,
                                              const uint16_t,
                                              sn_nsdl_addr_type_e)
 {
@@ -118,9 +126,6 @@ uint8_t M2MNsdlInterface::resource_callback(struct nsdl_s *,
     return (uint8_t)m2mnsdlinterface_stub::int_value;
 }
 
-void M2MNsdlInterface::bootstrap_done_callback(sn_nsdl_oma_server_info_t *)
-{
-}
 
 bool M2MNsdlInterface::process_received_data(uint8_t *,
                                              uint16_t ,
@@ -146,7 +151,7 @@ void M2MNsdlInterface::send_delayed_response(M2MBase *)
 {
 }
 
-void M2MNsdlInterface::resource_to_be_deleted(const String &)
+void M2MNsdlInterface::resource_to_be_deleted(M2MBase *)
 {
 }
 
@@ -156,4 +161,51 @@ void M2MNsdlInterface::value_updated(M2MBase *, const String&)
 
 void M2MNsdlInterface::remove_object(M2MBase *)
 {
+}
+
+nsdl_s* M2MNsdlInterface::get_nsdl_handle()
+{
+    return (nsdl_s*) m2mnsdlinterface_stub::void_value;
+}
+
+void M2MNsdlInterface::handle_bootstrap_put_message(sn_coap_hdr_s *coap_header, sn_nsdl_addr_s *address)
+{
+
+}
+
+void M2MNsdlInterface::handle_bootstrap_finished(sn_coap_hdr_s *coap_header,sn_nsdl_addr_s *address)
+{
+
+}
+
+void M2MNsdlInterface::handle_bootstrap_delete(sn_coap_hdr_s *coap_header,sn_nsdl_addr_s *address)
+{
+
+}
+
+bool M2MNsdlInterface::parse_bootstrap_message(sn_coap_hdr_s *coap_header, bool is_security_object)
+{
+
+}
+
+bool M2MNsdlInterface::validate_security_object()
+{
+
+}
+
+void M2MNsdlInterface::handle_bootstrap_error()
+{
+
+}
+void M2MNsdlInterface::claim_mutex()
+{
+}
+
+void M2MNsdlInterface::release_mutex()
+{
+}
+
+const String& M2MNsdlInterface::endpoint_name() const
+{
+    return *m2mnsdlinterface_stub::string_value;
 }

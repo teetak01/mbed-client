@@ -28,6 +28,8 @@ public:
 
     void test_create_resource_int();
 
+    void test_create_resource_string();
+
     void test_delete_resource();
 
     void test_set_resource_value_int();
@@ -51,7 +53,6 @@ public:
     void test_server_type();
 
     M2MSecurity* security;
-    Callback*   callback;
 };
 
 #endif // TEST_M2M_SECURITY_H
